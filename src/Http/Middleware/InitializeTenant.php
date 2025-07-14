@@ -18,12 +18,10 @@ class InitializeTenant
         if ($user) {
             $tenantId = session('tenant_id');
 
-            // Si no hay tenant en sesión, o no pertenece al usuario, abortar
-            if (!$tenantId || ! $user->tenants()->where('tenants.id', $tenantId)->exists()) {
-                Throw new \Exception('Acceso denegado: tenant no autorizado.');
-            }
-            
             if ($tenantId) {
+                if (! $user->tenants()->where('tenants.id', $tenantId)->exists()) {
+                    Throw new \Exception('Acceso denegado: tenant no autorizado.');
+                }
                 $tenant = Tenant::find($tenantId);
                 if ($tenant) {
                     Tenancy::initialize($tenant);
