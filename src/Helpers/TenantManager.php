@@ -192,26 +192,43 @@ class TenantManager
 
     public function initializeForUser($user, $tenant_connection_data)
     {
+        TenancyLog::info( __METHOD__ .' - Inicializando tenant para el usuario: ' . $user->email);
         // Trae los tenants del usuario
         $tenants = $user->tenants ?? $user->tenants();
         if (is_callable($tenants)) $tenants = $tenants();
 
+        TenancyLog::info( __METHOD__ .' - Cantidad de tenants encontrados: ' . $tenants->count());
         $count = $tenants instanceof \Illuminate\Database\Eloquent\Relations\Relation
             ? $tenants->count()
             : (is_countable($tenants) ? count($tenants) : 0);
 
         if ($count === 1) {
+            TenancyLog::info( __METHOD__ .' - Solo un tenant encontrado, inicializando: ' . $tenants->first()->id);
             $tenant = $tenants->first();
             $this->initialize($tenant);
             return $tenant;
         } elseif ($count > 1) {
+            TenancyLog::info( __METHOD__ .' - Múltiples tenants encontrados, no se puede inicializar automáticamente.');
             // Opcional: elegí lógica de resolución
             throw new \Exception("El usuario pertenece a múltiples tenants. Selección manual requerida.");
         } else {
+            TenancyLog::info( __METHOD__ .' - No se encontraron tenants, creando uno nuevo.');
             $tenant = $this->createTenant($user->email . ' Tenant',$tenant_connection_data);
+
+            TenancyLog::info( __METHOD__ .' - Tenant creado: ' . $tenant->id . ' - ' . $tenant->name);
+
+            // Asociar tenant al usuario
+            TenancyLog::info( __METHOD__ .' - Asociando tenant al usuario: '
             $user->tenants()->attach($tenant->id);
+            
+            TenancyLog::info( __METHOD__ .' - Sincronizando usuario a la base tenant.');
+            // Sincronizar usuario a la base tenant
             $this->syncUserToTenant($user, $tenant);
+
+            TenancyLog::info( __METHOD__ .' - Inicializando tenant: ' . $tenant->id);
+            // Inicializar tenant
             $this->initialize($tenant);
+            
             return $tenant;
         }
     }
