@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Fantismic\Tenancy\Models\Tenant;
 use Fantismic\Tenancy\Models\UserTenant;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * TenantManager handles tenant creation, database setup, and migrations.
@@ -43,6 +44,106 @@ class TenantManager
         'avatar',
         // Agrega más campos según tu modelo User
     ];
+
+    public function userHasTenant(Model|object $user, bool $checkDatabase = false, ?string $checkTable = 'users'): bool
+    {
+        if (!method_exists($user, 'tenants')) {
+            return false;
+        }
+
+        try {
+            $tenantsQuery = $user->tenants();
+
+            if (!$tenantsQuery->exists()) {
+                return false;
+            }
+
+            if (!$checkDatabase) {
+                // Solo verificar asignación de tenant
+                return true;
+            }
+
+            // Si pide chequeo de base y migraciones
+            foreach ($tenantsQuery->get() as $tenant) {
+                $connectionData = json_decode($tenant->connection, true);
+
+                // Definimos nombre conexión temporal
+                $connectionName = 'tenant_temp_check_' . $tenant->id;
+
+                // Seteamos conexión dinámica para el tenant
+                \Fantismic\Tenancy\Helpers\ConnectionHelper::setTenantConnection($connectionData, $connectionName);
+
+                // Verificamos si la tabla clave existe en esa conexión
+                $schema = app('db')->connection($connectionName)->getSchemaBuilder();
+
+                if (!$schema->hasTable($checkTable)) {
+                    return false; // tabla no existe -> migraciones no aplicadas
+                }
+            }
+
+            return true; // Todos los tenants tienen la tabla requerida
+        } catch (\Exception $e) {
+            // Algo falló: conexión, DB, etc.
+            return false;
+        }
+    }
+
+    public function ensureUserTenantReady(Model|object $user, ?array $connectionData = null, ?string $tenantName = null, ?string $seederClass = null, ?string $checkTable = 'users'): bool
+    {
+        if (!method_exists($user, 'tenants')) {
+            throw new \InvalidArgumentException("El modelo de usuario debe tener relación tenants()");
+        }
+
+        try {
+            // 1. Buscar si ya tiene tenant asignado y válido
+            $tenant = $user->tenants()
+                ->whereHas('connection') // Opcional, para filtrar tenants con conexión
+                ->first();
+
+            // 2. Si no tiene tenant, crearlo
+            if (!$tenant) {
+                if (!$connectionData) {
+                    throw new \InvalidArgumentException("Debe proveer datos de conexión para crear el tenant");
+                }
+
+                $tenantName = $tenantName ?? ($user->name . ' Tenant');
+
+                $tenant = $this->createTenant($tenantName, $connectionData, [
+                    'create_db' => true,
+                    'migrate'   => false,
+                    'seed'      => null,
+                ]);
+
+                // Asociar tenant a usuario
+                $user->tenants()->attach($tenant->id);
+            }
+
+            // 3. Verificar migraciones / tabla clave
+            $connectionArr = json_decode($tenant->connection, true);
+            $connectionName = 'tenant_temp_check_' . $tenant->id;
+            \Fantismic\Tenancy\Helpers\ConnectionHelper::setTenantConnection($connectionArr, $connectionName);
+
+            $schema = app('db')->connection($connectionName)->getSchemaBuilder();
+
+            if (!$schema->hasTable($checkTable)) {
+                $this->runTenantMigrations($connectionArr);
+            }
+
+            if ($seederClass) {
+                $this->runTenantSeeder($connectionArr, $seederClass);
+            }
+
+            // 4. Sincronizar usuario a la base tenant
+            $this->syncUserToTenant($user, $tenant);
+
+            return true;
+        } catch (\Exception $e) {
+            // Podés loggear o manejar error a conveniencia
+            return false;
+        }
+    }
+
+
 
     public function getCurrentTenant()
     {
@@ -88,7 +189,7 @@ class TenantManager
         } else {
             $tenant = $this->createTenant($user->email . ' Tenant',$tenant_connection_data);
             $user->tenants()->attach($tenant->id);
-            $this->syncUserToTenant($user, $tenant, ['name', 'email', 'avatar']);
+            $this->syncUserToTenant($user, $tenant);
             $this->initialize($tenant);
             return $tenant;
         }
