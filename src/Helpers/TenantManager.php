@@ -218,7 +218,7 @@ class TenantManager
             TenancyLog::info( __METHOD__ .' - Tenant creado: ' . $tenant->id . ' - ' . $tenant->name);
 
             // Asociar tenant al usuario
-            TenancyLog::info( __METHOD__ .' - Asociando tenant al usuario: '
+            TenancyLog::info( __METHOD__ .' - Asociando tenant al usuario: ' . $user->email);
             $user->tenants()->attach($tenant->id);
             
             TenancyLog::info( __METHOD__ .' - Sincronizando usuario a la base tenant.');
@@ -228,7 +228,7 @@ class TenantManager
             TenancyLog::info( __METHOD__ .' - Inicializando tenant: ' . $tenant->id);
             // Inicializar tenant
             $this->initialize($tenant);
-            
+
             return $tenant;
         }
     }
