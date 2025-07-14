@@ -2,7 +2,7 @@
 
 namespace Fantismic\Tenancy\Logging;
 
-class TenancyLogger
+class TenancyLog
 {
     public static function info($message, array $context = [])
     {

@@ -31,7 +31,7 @@ class TenancyServiceProvider extends ServiceProvider
         ], 'tenancy-tenant-migrations');
 
         $this->publishes([
-            __DIR__ . '/../config/tenancy.php' => config_path('tenancy.php'),
+            __DIR__ . '/config/tenancy.php' => config_path('tenancy.php'),
         ], 'config');
 
         Livewire::setUpdateRoute(function ($handle) {
@@ -97,7 +97,7 @@ class TenancyServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton('tenancylog', function () {
-            return new \Fantismic\Tenancy\Logging\TenancyLogger();
+            return new \Fantismic\Tenancy\Logging\TenancyLog();
         });
     }
 }
