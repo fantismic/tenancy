@@ -30,6 +30,10 @@ class TenancyServiceProvider extends ServiceProvider
             __DIR__.'/../database/migrations/tenant' => database_path('migrations/tenant'),
         ], 'tenancy-tenant-migrations');
 
+        $this->publishes([
+            __DIR__ . '/../config/tenancy.php' => config_path('tenancy.php'),
+        ], 'config');
+
         Livewire::setUpdateRoute(function ($handle) {
             return Route::post('/livewire/update', $handle)
                 ->middleware([
@@ -90,6 +94,10 @@ class TenancyServiceProvider extends ServiceProvider
 
         $this->app->singleton('tenantadmin', function () {
             return new \Fantismic\Tenancy\Services\TenantAdminService();
+        });
+
+        $this->app->singleton('tenancylog', function () {
+            return new \Fantismic\Tenancy\Logging\TenancyLogger();
         });
     }
 }

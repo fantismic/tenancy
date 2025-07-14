@@ -3,19 +3,22 @@
 namespace Fantismic\Tenancy\Helpers;
 
 use Exception;
+use Throwable;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Fantismic\Tenancy\Models\Tenant;
-use Fantismic\Tenancy\Models\UserTenant;
+use Fantismic\Tenancy\Facades\Tenancy;
 use Illuminate\Database\Eloquent\Model;
+use Fantismic\Tenancy\Models\UserTenant;
+use Fantismic\Tenancy\Facades\TenancyLog;
 
 /**
  * TenantManager handles tenant creation, database setup, and migrations.
  */
 
 /*
-use Fantismic\Tenancy\Facades\Tenancy;
+
 
 
 $tenant = Tenancy::createTenant(
@@ -47,6 +50,7 @@ class TenantManager
 
     public function userHasTenant($user, bool $checkDatabase = false, ?string $checkTable = 'users'): bool
     {
+        TenancyLog::info( __METHOD__ .' - Verificando si el usuario tiene tenant asignado.');
         if (!method_exists($user, 'tenants')) {
             return false;
         }
@@ -55,6 +59,7 @@ class TenantManager
             $tenantsQuery = $user->tenants();
 
             if (!$tenantsQuery->exists()) {
+                TenancyLog::info( __METHOD__ .' - El usuario no tiene tenants asignados.');
                 return false;
             }
 
@@ -64,6 +69,7 @@ class TenantManager
             }
 
             // Si pide chequeo de base y migraciones
+            TenancyLog::info( __METHOD__ .' - Verificando conexión y migraciones de los tenants asignados.');
             foreach ($tenantsQuery->get() as $tenant) {
                 $connectionData = json_decode($tenant->connection, true);
 
@@ -77,31 +83,37 @@ class TenantManager
                 $schema = app('db')->connection($connectionName)->getSchemaBuilder();
 
                 if (!$schema->hasTable($checkTable)) {
+                    TenancyLog::info( __METHOD__ .' - El tenant ' . $tenant->id . ' no tiene la tabla requerida: ' . $checkTable);
                     return false; // tabla no existe -> migraciones no aplicadas
                 }
             }
 
-            return true; // Todos los tenants tienen la tabla requerida
+            TenancyLog::info( __METHOD__ .' - true para ' . $user->mail);
+            return true;
         } catch (\Exception $e) {
-            // Algo falló: conexión, DB, etc.
+            TenancyLog::error( __METHOD__ .' - Error al verificar tenants: ' . $e->getMessage());
+            Throw new \Exception("Error al verificar tenants: " . $e->getMessage());
             return false;
         }
     }
 
     public function ensureUserTenantReady($user, ?array $connectionData = null, ?string $tenantName = null, ?string $seederClass = null, ?string $checkTable = 'users'): bool
     {
+        TenancyLog::info( __METHOD__ .' - Asegurando tenant para el usuario: ' . $user->email);
         if (!method_exists($user, 'tenants')) {
             throw new \InvalidArgumentException("El modelo de usuario debe tener relación tenants()");
         }
 
         try {
             // 1. Buscar si ya tiene tenant asignado y válido
+            TenancyLog::info( __METHOD__ .' - Buscando tenant asignado al usuario.');
             $tenant = $user->tenants()
                 ->whereHas('connection') // Opcional, para filtrar tenants con conexión
                 ->first();
 
             // 2. Si no tiene tenant, crearlo
             if (!$tenant) {
+                TenancyLog::info( __METHOD__ .' - No tiene tenant asignado, creando uno nuevo.');
                 if (!$connectionData) {
                     throw new \InvalidArgumentException("Debe proveer datos de conexión para crear el tenant");
                 }
@@ -113,12 +125,15 @@ class TenantManager
                     'migrate'   => false,
                     'seed'      => null,
                 ]);
+                TenancyLog::info( __METHOD__ .' - Tenant creado: ' . $tenant->id . ' - ' . $tenant->name);
 
                 // Asociar tenant a usuario
+                TenancyLog::info( __METHOD__ .' - Asociando tenant al usuario: ' . $user->email);
                 $user->tenants()->attach($tenant->id);
             }
 
             // 3. Verificar migraciones / tabla clave
+            TenancyLog::info( __METHOD__ .' - Verificando migraciones y tabla clave: ' . $checkTable);
             $connectionArr = json_decode($tenant->connection, true);
             $connectionName = 'tenant_temp_check_' . $tenant->id;
             \Fantismic\Tenancy\Helpers\ConnectionHelper::setTenantConnection($connectionArr, $connectionName);
@@ -126,19 +141,25 @@ class TenantManager
             $schema = app('db')->connection($connectionName)->getSchemaBuilder();
 
             if (!$schema->hasTable($checkTable)) {
+                TenancyLog::info( __METHOD__ .' - Tabla ' . $checkTable . ' no existe en el tenant, ejecutando migraciones.');
                 $this->runTenantMigrations($connectionArr);
             }
 
             if ($seederClass) {
+                TenancyLog::info( __METHOD__ .' - Ejecutando seeder: ' . $seederClass);
                 $this->runTenantSeeder($connectionArr, $seederClass);
             }
 
             // 4. Sincronizar usuario a la base tenant
+            TenancyLog::info( __METHOD__ .' - Sincronizando usuario a la base tenant.');
             $this->syncUserToTenant($user, $tenant);
 
-            return true;
+            // 5. Inicializar tenant
+            TenancyLog::info( __METHOD__ .' - Tenant creado: ' . $tenant->id);
+            return $tenant;
         } catch (\Exception $e) {
-            // Podés loggear o manejar error a conveniencia
+            TenancyLog::error( __METHOD__ .' - Error al asegurar tenant del usuario: ' . $e->getMessage());
+            Throw new \Exception("Error al asegurar tenant del usuario: " . $e->getMessage());
             return false;
         }
     }
