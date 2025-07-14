@@ -1,0 +1,16 @@
+{
+  "name": "fantismic/tenancy",
+  "version": "0.0.27",
+  "autoload": {
+    "psr-4": {
+      "Fantismic\\Tenancy\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Fantismic\\Tenancy\\TenancyServiceProvider"
+      ]
+    }
+  }
+}
