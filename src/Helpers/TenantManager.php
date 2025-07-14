@@ -86,7 +86,7 @@ class TenantManager
             // Opcional: elegí lógica de resolución
             throw new \Exception("El usuario pertenece a múltiples tenants. Selección manual requerida.");
         } else {
-            $tenant = $this->createTenant($user->name . ' Tenant',$tenant_connection_data);
+            $tenant = $this->createTenant($user->email . ' Tenant',$tenant_connection_data);
             $user->tenants()->attach($tenant->id);
             $this->syncUserToTenant($user, $tenant, ['name', 'email', 'avatar']);
             $this->initialize($tenant);
@@ -157,6 +157,7 @@ class TenantManager
         $finalConnection['database'] = $dbName;
         $finalConnection['username'] = $tenantDbUser;
         $finalConnection['password'] = $tenantDbPass;
+        unset($finalConnection['admin_username'], $finalConnection['admin_password']);
 
         // 5. Crea el registro central (usando el UUID que ya tenés)
 /*         $tenant = new Tenant([
