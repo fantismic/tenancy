@@ -1,5 +1,7 @@
 {
   "name": "fantismic/tenancy",
+  "license": "MIT",
+  "description": "A package to manage multi-tenancy in Laravel applications.",
   "version": "1.0.2",
   "autoload": {
     "psr-4": {
