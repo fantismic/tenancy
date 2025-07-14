@@ -2,7 +2,7 @@
   "name": "fantismic/tenancy",
   "license": "MIT",
   "description": "A package to manage multi-tenancy in Laravel applications.",
-  "version": "1.0.10",
+  "version": "1.0.12",
   "autoload": {
     "psr-4": {
       "Fantismic\\Tenancy\\": "src/"
