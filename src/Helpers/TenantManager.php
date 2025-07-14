@@ -45,7 +45,7 @@ class TenantManager
         // Agrega más campos según tu modelo User
     ];
 
-    public function userHasTenant(Model|object $user, bool $checkDatabase = false, ?string $checkTable = 'users'): bool
+    public function userHasTenant($user, bool $checkDatabase = false, ?string $checkTable = 'users'): bool
     {
         if (!method_exists($user, 'tenants')) {
             return false;
@@ -88,7 +88,7 @@ class TenantManager
         }
     }
 
-    public function ensureUserTenantReady(Model|object $user, ?array $connectionData = null, ?string $tenantName = null, ?string $seederClass = null, ?string $checkTable = 'users'): bool
+    public function ensureUserTenantReady($user, ?array $connectionData = null, ?string $tenantName = null, ?string $seederClass = null, ?string $checkTable = 'users'): bool
     {
         if (!method_exists($user, 'tenants')) {
             throw new \InvalidArgumentException("El modelo de usuario debe tener relación tenants()");
