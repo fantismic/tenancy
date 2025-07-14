@@ -3,6 +3,7 @@
 namespace Fantismic\Tenancy\Http\Middleware;
 
 use Closure;
+use Exception;
 use Fantismic\Tenancy\Facades\Tenancy;
 use Fantismic\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,7 @@ class InitializeTenant
 
             // Si no hay tenant en sesión, o no pertenece al usuario, abortar
             if (!$tenantId || ! $user->tenants()->where('tenants.id', $tenantId)->exists()) {
-                abort(403, 'Acceso denegado: tenant no autorizado.');
+                Throw new \Exception('Acceso denegado: tenant no autorizado.');
             }
             
             if ($tenantId) {
