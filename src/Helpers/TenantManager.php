@@ -71,21 +71,27 @@ class TenantManager
             // Si pide chequeo de base y migraciones
             TenancyLog::info( __METHOD__ .' - Verificando conexión y migraciones de los tenants asignados.');
             foreach ($tenantsQuery->get() as $tenant) {
-                $connectionData = json_decode($tenant->connection, true);
+                try {
+                    $connectionData = json_decode($tenant->connection, true);
 
-                // Definimos nombre conexión temporal
-                $connectionName = 'tenant_temp_check_' . $tenant->id;
+                    // Definimos nombre conexión temporal
+                    $connectionName = 'tenant_temp_check_' . $tenant->id;
 
-                // Seteamos conexión dinámica para el tenant
-                \Fantismic\Tenancy\Helpers\ConnectionHelper::setTenantConnection($connectionData, $connectionName);
+                    // Seteamos conexión dinámica para el tenant
+                    \Fantismic\Tenancy\Helpers\ConnectionHelper::setTenantConnection($connectionData, $connectionName);
 
-                // Verificamos si la tabla clave existe en esa conexión
-                $schema = app('db')->connection($connectionName)->getSchemaBuilder();
+                    // Verificamos si la tabla clave existe en esa conexión
+                    $schema = app('db')->connection($connectionName)->getSchemaBuilder();
 
-                if (!$schema->hasTable($checkTable)) {
-                    TenancyLog::info( __METHOD__ .' - El tenant ' . $tenant->id . ' no tiene la tabla requerida: ' . $checkTable);
-                    return false; // tabla no existe -> migraciones no aplicadas
+                    if (!$schema->hasTable($checkTable)) {
+                        TenancyLog::info( __METHOD__ .' - El tenant ' . $tenant->id . ' no tiene la tabla requerida: ' . $checkTable);
+                        return false; // tabla no existe -> migraciones no aplicadas
+                    }
+                } catch (\Throwable $th) {
+                    TenancyLog::error( __METHOD__ .' - Error al verificar tenant ' . $tenant->id . ': ' . $th->getMessage());
+                    return false; // Error en conexión o verificación
                 }
+
             }
 
             TenancyLog::info( __METHOD__ .' - true para ' . $user->mail);
