@@ -50,7 +50,7 @@ class TenantManager
 
     public function userHasTenant($user, bool $checkDatabase = false, ?string $checkTable = 'users'): bool
     {
-        TenancyLog::info( __METHOD__ .' - Verificando si el usuario tiene tenant asignado.');
+        TenancyLog::info( __METHOD__ .' - Verificando si el usuario '.$user->email.' tiene tenant asignado.');
         if (!method_exists($user, 'tenants')) {
             return false;
         }
